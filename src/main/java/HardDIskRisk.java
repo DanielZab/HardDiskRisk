@@ -16,7 +16,7 @@ public class HardDIskRisk <G extends Game<A, ?>, A> extends AbstractGameAgent<G,
     public A computeNextAction(G game, long computationTime, TimeUnit timeUnit) {
         //optionally set AbstractGameAgent timers
         super.setTimers(computationTime, timeUnit);
-    //choose the first option
+        //choose the first option
         return List.copyOf(game.getPossibleActions()).get(0);
     }
 }
