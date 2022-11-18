@@ -1,19 +1,14 @@
-plugins {
-    id 'java'
-}
-
-group 'org.example'
-version '1.0-SNAPSHOT'
-
+sourceCompatibility = 1.11
 repositories {
-    mavenCentral()
+    jcenter()
 }
-
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+    compile group: 'at.ac.tuwien.ifs.sge', name: 'sge', version: '1.0.2'
 }
-
-test {
-    useJUnitPlatform()
+jar {
+    manifest {
+        attributes 'Sge-Type': 'agent'
+        attributes 'Agent-Class': './src/main/java/HardDiskRisk.java'
+        attributes 'Agent-Name': 'HardDiskRisk'
+    }
 }
