@@ -10,7 +10,7 @@ dependencies {
 jar {
     manifest {
         attributes 'Sge-Type': 'agent'
-        attributes 'Agent-Class': 'java/HardDiskRisk.java'
+        attributes 'Agent-Class': 'HardDiskRisk'
         attributes 'Agent-Name': 'HardDiskRisk'
     }
 }
