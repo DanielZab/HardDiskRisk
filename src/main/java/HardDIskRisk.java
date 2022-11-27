@@ -76,7 +76,11 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
 
     public A computeNextAction(G game, long computationTime, TimeUnit timeUnit) {
         setTimers(computationTime, timeUnit);
-        this.log.inf_("HardDiskRisk playing");
+        this.log.info("HardDiskRisk playing now");
+        ArrayList<A> al = new ArrayList<A>();
+        al.add(new at.ac.tuwien.ifs.sge.game.risk.board.RiskAction());
+
+        this.log.debug(game.getPossibleActions().toArray()[0].getClass());
         this.log.tra_("Searching for root of tree");
         boolean foundRoot = Util.findRoot(this.mcTree, (Game)game);
         if (foundRoot) {

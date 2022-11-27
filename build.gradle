@@ -4,7 +4,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    implementation files('lib/sge-1.0.2-exe.jar', 'lib/sge-1.0.2-javadoc.jar', 'lib/sge-1.0.2-sources.jar', 'sge-risk-1.0.2-exe.jar', 'sge-risk-1.0.2-javadoc.jar', 'sge-risk-1.0.2-sources.jar', 'lib/RiskAgend-1.0.1.jar')
+    implementation files('lib/sge-1.0.2-exe.jar', 'lib/sge-1.0.2-javadoc.jar', 'lib/sge-1.0.2-sources.jar', 'lib/sge-risk-1.0.2-exe.jar', 'lib/sge-risk-1.0.2-javadoc.jar', 'lib/sge-risk-1.0.2-sources.jar', 'lib/RiskAgend-1.0.1.jar')
 //also consider to add the game in the same manner
 }
 jar {

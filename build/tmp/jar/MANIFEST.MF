@@ -1,5 +1,0 @@
-Manifest-Version: 1.0
-Sge-Type: agent
-Agent-Class: HardDiskRisk
-Agent-Name: HardDiskRisk
-
