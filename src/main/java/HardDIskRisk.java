@@ -2,14 +2,14 @@ import at.ac.tuwien.ifs.sge.agent.AbstractGameAgent;
 import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.Game;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.util.Util;
+import at.ac.tuwien.ifs.sge.util.node.GameNode;
 import at.ac.tuwien.ifs.sge.util.tree.DoubleLinkedTree;
 import at.ac.tuwien.ifs.sge.util.tree.Tree;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, A> implements GameAgent<G, A> {
@@ -43,6 +43,53 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
 
     private Tree<McGameNode<A>> mcTree;
 
+
+    // Custom variables and functions
+
+    private int placedTroupsCounter = 0;
+
+    private ArrayList<A> selectionPhase = new ArrayList<>();
+
+    private Set<Integer> preferredStartingPositionsAustralia = new HashSet<>();
+    private Set<Integer> preferredStartingPositionsSouthAmerica = new HashSet<>();
+
+
+    private A selectPreferredTerritory(G game, Set<Integer> prefs){
+        for (Integer i: prefs) {
+            if (game.isValidAction((A)RiskAction.select(i))){
+                return (A)RiskAction.select(i);
+            }
+        }
+        return null;
+    }
+
+    private int countPreferredTerritories(Set<Integer> list, Set<Integer> territories){
+        int counter = 0;
+        for (Integer i: list) {
+            if (territories.contains(i)) counter++;
+        }
+        return counter;
+    }
+
+    private boolean isSelectionPhase(G game){
+        //return selectionPhase.contains(game.getPossibleActions().toArray()[0]);
+        return placedTroupsCounter <= 50;
+    }
+
+    private void customSetup(){
+        for (int i = 0; i < 42; i++) {
+            selectionPhase.add((A)RiskAction.select(i));
+        }
+
+        int[] tmpAus = {38,39,40,41};
+        int[] tmpSouth = {9,10,11,12};
+
+        for (int i = 0; i < tmpAus.length; i++) {
+            preferredStartingPositionsAustralia.add(tmpAus[i]);
+            preferredStartingPositionsSouthAmerica.add(tmpSouth[i]);
+        }
+    }
+
     public HardDiskRisk() {
         this((Logger)null);
     }
@@ -72,15 +119,33 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
         this.gameMcTreeSelectionComparator = this.gameMcTreeUCTComparator.thenComparing(this.gameMcTreeGameComparator);
         this.gameMcNodeMoveComparator = this.gameMcNodePlayComparator.thenComparing(this.gameMcNodeWinComparator).thenComparing(this.gameMcNodeGameComparator);
         this.gameMcTreeMoveComparator = ((o1, o2) -> this.gameMcNodeMoveComparator.compare((McGameNode<A>)o1.getNode(), (McGameNode<A>)o2.getNode()));
+        customSetup();
     }
 
     public A computeNextAction(G game, long computationTime, TimeUnit timeUnit) {
         setTimers(computationTime, timeUnit);
-        this.log.info("HardDiskRisk playing now");
-        ArrayList<A> al = new ArrayList<A>();
-        al.add(new at.ac.tuwien.ifs.sge.game.risk.board.RiskAction());
 
-        this.log.debug(game.getPossibleActions().toArray()[0].getClass());
+        placedTroupsCounter++;
+        this.log.info("HardDiskRisk playing now");
+
+        if(isSelectionPhase(game)) {
+
+            var territories = ((RiskBoard)game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
+            A action = null;
+            if (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories)){
+                action = selectPreferredTerritory(game, preferredStartingPositionsAustralia);
+            }
+            if (action != null) return action;
+            action = selectPreferredTerritory(game, preferredStartingPositionsSouthAmerica);
+            if (action != null) return action;
+
+        }
+
+        if (this.mcTree != null && this.mcTree.getNode() != null && this.mcTree.getNode().getGame() != null){
+        this.log.debug(((GameNode)mcTree.getNode()).getGame().getActionRecords());
+        this.log.debug(game.getActionRecords());
+
+        }
         this.log.tra_("Searching for root of tree");
         boolean foundRoot = Util.findRoot(this.mcTree, (Game)game);
         if (foundRoot) {
