@@ -41,7 +41,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private Comparator<Tree<McGameNode>> gameMcTreeGameComparator;
 
-    private DoubleLinkedTree<McGameNode> mcTree;
+     */
 
     private MyDoubleLinkedTree mcTree;
 
@@ -95,6 +95,19 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             selectionPhase.add(RiskAction.select(i));
         }
 
+        for (int i = 0; i < 9; i++) {
+            northAmerica.add(i);
+        }
+        for (int i = 13; i < 20; i++) {
+            europe.add(i);
+        }
+        for (int i = 20; i < 26; i++) {
+            africa.add(i);
+        }
+        for (int i = 26; i < 38; i++) {
+            asia.add(i);
+        }
+
         int[] tmpAus = {38,39,40,41};
         int[] tmpSouth = {9,10,11,12};
 
@@ -124,7 +137,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     public HardDiskRisk(double exploitationConstant, Logger log) {
         super(log);
         this.exploitationConstant = exploitationConstant;
-        this.mcTree = new DoubleLinkedTree<McGameNode>();
+        this.mcTree = new MyDoubleLinkedTree();
         this.instanceNr = INSTANCE_NR_COUNTER++;
     }
 
@@ -134,7 +147,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         customSetup();
     }
 
-    public void exploreNode(DoubleLinkedTree<McGameNode> node){
+    public void exploreNode(MyDoubleLinkedTree node){
         if (!(node.getNode().isExplored())) {
             Risk game = ((McGameNode)node.getNode()).getGame();
             Set<RiskAction> possibleActions = game.getPossibleActions();
