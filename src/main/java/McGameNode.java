@@ -97,5 +97,34 @@ public class McGameNode implements GameNode<RiskAction> {
     public int hashCode() {
         return Objects.hash(new Object[] { this.game, Integer.valueOf(this.wins), Integer.valueOf(this.plays) });
     }
+
+    /*
+    determines
+     */
+    public double computeValue() {
+
+
+        int playerCount = game.getNumberOfPlayers();
+
+
+
+        RiskBoard board = ((RiskBoard)game.getBoard());
+        double value = 0;
+        for (int i = 0; i < playerCount; i++) {
+            int troups = 0;
+            ArrayList<Integer> troupArray = new ArrayList<Integer>();
+            for (int terrId:board.getTerritoriesOccupiedByPlayer(i)) {
+                troups += board.getTerritoryTroops(terrId);
+                troupArray.add(board.getTerritoryTroops(terrId));
+            }
+            double mean = troupArray.stream().mapToDouble(a -> a).sum() / troupArray.size();
+            double standardDeviation = Math.sqrt(troupArray.stream().mapToDouble(a -> Math.pow(a - mean, 2)).sum());
+            int multiplier = (i == playerID) ? 1 : -1/ Math.max(playerCount-1, 1);
+            value += multiplier * troups * board.getNrOfTerritoriesOccupiedByPlayer(i) / Math.max(standardDeviation, 1);
+        }
+
+        return value;
+    }
+
 }
 
