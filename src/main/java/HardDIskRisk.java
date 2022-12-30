@@ -2,6 +2,7 @@ import at.ac.tuwien.ifs.sge.agent.AbstractGameAgent;
 import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.Game;
+import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.util.Util;
@@ -12,7 +13,7 @@ import at.ac.tuwien.ifs.sge.util.tree.Tree;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, A> implements GameAgent<G, A> {
+public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements GameAgent<Risk, RiskAction> {
     private static final int MAX_PRINT_THRESHOLD = 97;
 
     private static int INSTANCE_NR_COUNTER = 1;
@@ -21,43 +22,43 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
 
     private final double exploitationConstant;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreeUCTComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreeUCTComparator;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreeSelectionComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreeSelectionComparator;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreePlayComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreePlayComparator;
 
-    private Comparator<McGameNode<A>> gameMcNodePlayComparator;
+    private Comparator<McGameNode> gameMcNodePlayComparator;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreeWinComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreeWinComparator;
 
-    private Comparator<McGameNode<A>> gameMcNodeWinComparator;
+    private Comparator<McGameNode> gameMcNodeWinComparator;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreeMoveComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreeMoveComparator;
 
-    private Comparator<McGameNode<A>> gameMcNodeMoveComparator;
+    private Comparator<McGameNode> gameMcNodeMoveComparator;
 
-    private Comparator<McGameNode<A>> gameMcNodeGameComparator;
+    private Comparator<McGameNode> gameMcNodeGameComparator;
 
-    private Comparator<Tree<McGameNode<A>>> gameMcTreeGameComparator;
+    private Comparator<Tree<McGameNode>> gameMcTreeGameComparator;
 
-    private Tree<McGameNode<A>> mcTree;
+    private DoubleLinkedTree<McGameNode> mcTree;
 
 
     // Custom variables and functions
 
     private int placedTroupsCounter = 0;
 
-    private ArrayList<A> selectionPhase = new ArrayList<>();
+    private ArrayList<RiskAction> selectionPhase = new ArrayList<>();
 
     private Set<Integer> preferredStartingPositionsAustralia = new HashSet<>();
     private Set<Integer> preferredStartingPositionsSouthAmerica = new HashSet<>();
 
 
-    private A selectPreferredTerritory(G game, Set<Integer> prefs){
+    private RiskAction selectPreferredTerritory(Risk game, Set<Integer> prefs){
         for (Integer i: prefs) {
-            if (game.isValidAction((A)RiskAction.select(i))){
-                return (A)RiskAction.select(i);
+            if (game.isValidAction((RiskAction.select(i)))){
+                return RiskAction.select(i);
             }
         }
         return null;
@@ -71,14 +72,14 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
         return counter;
     }
 
-    private boolean isSelectionPhase(G game){
+    private boolean isSelectionPhase(Risk game){
         //return selectionPhase.contains(game.getPossibleActions().toArray()[0]);
-        return placedTroupsCounter <= 50;
+        return placedTroupsCounter <= 50 && game.getBoard().isReinforcementPhase();
     }
 
     private void customSetup(){
         for (int i = 0; i < 42; i++) {
-            selectionPhase.add((A)RiskAction.select(i));
+            selectionPhase.add(RiskAction.select(i));
         }
 
         int[] tmpAus = {38,39,40,41};
@@ -101,10 +102,67 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
     public HardDiskRisk(double exploitationConstant, Logger log) {
         super(log);
         this.exploitationConstant = exploitationConstant;
-        this.mcTree = (Tree<McGameNode<A>>)new DoubleLinkedTree();
+        this.mcTree = new DoubleLinkedTree<McGameNode>();
         this.instanceNr = INSTANCE_NR_COUNTER++;
     }
 
+    public void setUp(int numberOfPlayers, int playerId){
+        super.setUp(numberOfPlayers, playerId);
+        this.mcTree.clear();
+    }
+
+    public void exploreNode(DoubleLinkedTree<McGameNode> node){
+        if (!(node.getNode().isExplored())) {
+            Risk game = ((McGameNode)node.getNode()).getGame();
+            Set<RiskAction> possibleActions = game.getPossibleActions();
+            for (RiskAction possibleAction : possibleActions){
+                node.add(new McGameNode(game, possibleAction, playerId));
+            }
+            node.getNode().setExplored();
+        }
+    }
+
+    public RiskAction computeNextAction(Risk game, long computationTime, TimeUnit timeUnit) {
+        setTimers(computationTime, timeUnit);
+
+        if (mcTree.getNode() == null){
+            mcTree.setNode(new McGameNode(game, playerId));
+        }
+
+        if (!mcTree.getNode().isExplored()){
+            exploreNode(mcTree);
+        }
+
+        if (game.getCurrentPlayer() == playerId){
+            placedTroupsCounter++;
+        }
+        this.log.info("HardDiskRisk playing now. Is op: " + game.getBoard().isOccupyPhase() + ". Is fp: " + game.getBoard().isFortifyPhase()+ ". Is ap: " + game.getBoard().isAttackPhase()+ ". Is rp: " + game.getBoard().isReinforcementPhase());
+
+        if(isSelectionPhase(game)) {
+
+            this.log.info("Selecting preferred territory");
+            var territories = ((RiskBoard)game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
+            RiskAction action = null;
+            if (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories)){
+                action = selectPreferredTerritory(game, preferredStartingPositionsAustralia);
+            }
+            if (action != null) return action;
+            action = selectPreferredTerritory(game, preferredStartingPositionsSouthAmerica);
+            if (action != null) return action;
+            this.log.info("Could not select preferred territory");
+
+        }
+        ArrayList<RiskAction> lol = new ArrayList<RiskAction>(game.getPossibleActions());
+        return lol.get(random.nextInt(lol.size()));
+    }
+
+    public void tearDown() {
+    }
+
+    public void destroy() {
+    }
+
+    /*
     public void setUp(int numberOfPlayers, int playerId) {
         super.setUp(numberOfPlayers, playerId);
         this.mcTree.clear();
@@ -138,12 +196,6 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
             if (action != null) return action;
             action = selectPreferredTerritory(game, preferredStartingPositionsSouthAmerica);
             if (action != null) return action;
-
-        }
-
-        if (this.mcTree != null && this.mcTree.getNode() != null && this.mcTree.getNode().getGame() != null){
-        this.log.debug(((GameNode)mcTree.getNode()).getGame().getActionRecords());
-        this.log.debug(game.getActionRecords());
 
         }
         this.log.tra_("Searching for root of tree");
@@ -310,4 +362,5 @@ public class HardDiskRisk<G extends Game<A, ?>, A> extends AbstractGameAgent<G, 
             return String.format("%s%d", new Object[] { "MctsAgent#", Integer.valueOf(this.instanceNr) });
         return "MctsAgent";
     }
+    */
 }

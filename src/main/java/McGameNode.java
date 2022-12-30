@@ -1,37 +1,63 @@
 import at.ac.tuwien.ifs.sge.game.Game;
+import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.util.node.GameNode;
+
+import java.util.ArrayList;
 import java.util.Objects;
 
-public class McGameNode<A> implements GameNode<A> {
-    private Game<A, ?> game;
+public class McGameNode implements GameNode<RiskAction> {
+    private Risk game;
 
     private int wins;
 
     private int plays;
 
-    public McGameNode() {
-        this(null);
+    private boolean explored;
+
+    private int playerID;
+
+    public McGameNode(int playerID) {
+        this(null, playerID);
     }
 
-    public McGameNode(Game<A, ?> game) {
-        this(game, 0, 0);
+    public McGameNode(Risk game, int playerID) {
+        this(game, 0, 0, playerID);
     }
 
-    public McGameNode(Game<A, ?> game, A action) {
-        this(game.doAction(action));
+    public McGameNode(Risk game, RiskAction action, int playerID) {
+        this((Risk)game.doAction(action),playerID);
     }
 
-    public McGameNode(Game<A, ?> game, int wins, int plays) {
+    public McGameNode(Risk game, int wins, int plays, int playerID) {
         this.game = game;
         this.wins = wins;
         this.plays = plays;
+        this.playerID = playerID;
+        this.explored = false;
     }
 
-    public Game<A, ?> getGame() {
+    public Risk getGame() {
         return this.game;
     }
 
-    public void setGame(Game<A, ?> game) {
+    public void setExplored(){
+        explored = true;
+    }
+
+    @Override
+    public void setGame(Game<RiskAction, ?> game) {
+        if (game instanceof Risk){
+            setGame((Risk) game);
+        }
+    }
+
+    public boolean isExplored() {
+        return explored;
+    }
+
+    public void setGame(Risk game) {
         this.game = game;
     }
 
@@ -64,10 +90,8 @@ public class McGameNode<A> implements GameNode<A> {
             return true;
         if (o == null || getClass() != o.getClass())
             return false;
-        McGameNode<?> mcGameNode = (McGameNode)o;
-        return (this.wins == mcGameNode.wins && this.plays == mcGameNode.plays && this.game
-
-                .equals(mcGameNode.game));
+        McGameNode mcGameNode = (McGameNode)o;
+        return (this.wins == mcGameNode.wins && this.plays == mcGameNode.plays && this.game.equals(mcGameNode.game));
     }
 
     public int hashCode() {

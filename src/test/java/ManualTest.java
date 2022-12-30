@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit;
 public class ManualTest {
     public static void main(String[] args) {
         Risk exampleGame = new Risk();
-        HardDiskRisk<Risk, RiskAction> agent = new HardDiskRisk<Risk, RiskAction>(new Logger(-2, "[sge ", "",
+        HardDiskRisk agent = new HardDiskRisk(new Logger(-2, "[sge ", "",
                 "trace]: ", System.out, "",
                 "debug]: ", System.out, "",
                 "info]: ", System.out, "",
