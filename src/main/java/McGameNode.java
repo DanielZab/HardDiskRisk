@@ -99,27 +99,33 @@ public class McGameNode implements GameNode<RiskAction> {
     }
 
     /*
-    determines
-     */
+        determines and quantifies the situation for our player
+    */
     public double computeValue() {
-
 
         int playerCount = game.getNumberOfPlayers();
 
-
-
         RiskBoard board = ((RiskBoard)game.getBoard());
         double value = 0;
+
+        // Determine value for each player
         for (int i = 0; i < playerCount; i++) {
+
+            // Count amount of troups of player
             int troups = 0;
             ArrayList<Integer> troupArray = new ArrayList<Integer>();
             for (int terrId:board.getTerritoriesOccupiedByPlayer(i)) {
                 troups += board.getTerritoryTroops(terrId);
                 troupArray.add(board.getTerritoryTroops(terrId));
             }
+
+            // Determine mean and standard deviation of the distribution of the troups
             double mean = troupArray.stream().mapToDouble(a -> a).sum() / troupArray.size();
             double standardDeviation = Math.sqrt(troupArray.stream().mapToDouble(a -> Math.pow(a - mean, 2)).sum());
+
+            // Assign negative multiplier if player is enemy, 1 otherwise
             int multiplier = (i == playerID) ? 1 : -1/ Math.max(playerCount-1, 1);
+
             value += multiplier * troups * board.getNrOfTerritoriesOccupiedByPlayer(i) / Math.max(standardDeviation, 1);
         }
 

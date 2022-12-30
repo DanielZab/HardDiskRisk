@@ -1,17 +1,14 @@
 import at.ac.tuwien.ifs.sge.agent.AbstractGameAgent;
 import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
-import at.ac.tuwien.ifs.sge.game.Game;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
-import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.util.Util;
-import at.ac.tuwien.ifs.sge.util.node.GameNode;
-import at.ac.tuwien.ifs.sge.util.tree.DoubleLinkedTree;
 import at.ac.tuwien.ifs.sge.util.tree.Tree;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements GameAgent<Risk, RiskAction> {
     private static final int MAX_PRINT_THRESHOLD = 97;
@@ -21,6 +18,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     private final int instanceNr;
 
     private final double exploitationConstant;
+
+    /*
 
     private Comparator<Tree<McGameNode>> gameMcTreeUCTComparator;
 
@@ -44,24 +43,38 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private DoubleLinkedTree<McGameNode> mcTree;
 
+    private MyDoubleLinkedTree mcTree;
+
+    ArrayList<Set<Integer>> continents = new ArrayList<>();
 
     // Custom variables and functions
 
     private int placedTroupsCounter = 0;
 
-    private ArrayList<RiskAction> selectionPhase = new ArrayList<>();
+    private Set<RiskAction> selectionPhase = new HashSet<>();
 
     private Set<Integer> preferredStartingPositionsAustralia = new HashSet<>();
     private Set<Integer> preferredStartingPositionsSouthAmerica = new HashSet<>();
 
+    private Set<RiskAction> preferredStartingActionsAustralia = new HashSet<>();
+    private Set<RiskAction> preferredStartingActionsSouthAmerica = new HashSet<>();
 
-    private RiskAction selectPreferredTerritory(Risk game, Set<Integer> prefs){
-        for (Integer i: prefs) {
-            if (game.isValidAction((RiskAction.select(i)))){
-                return RiskAction.select(i);
-            }
-        }
-        return null;
+    private Set<Integer> northAmerica = new HashSet<>();
+    private Set<Integer> europe = new HashSet<>();
+    private Set<Integer> africa = new HashSet<>();
+    private Set<Integer> asia = new HashSet<>();
+
+    private void selectPreferredTerritory(Risk game, MyDoubleLinkedTree moveTree, Set<RiskAction> prefs){
+
+      Iterator<McGameNode> iterator = moveTree.myChildrenIterator();
+
+      while (iterator.hasNext()) {
+
+          if(!prefs.contains(iterator.next().getGame().getPreviousAction())){
+              iterator.remove();
+          }
+      }
+
     }
 
     private int countPreferredTerritories(Set<Integer> list, Set<Integer> territories){
@@ -88,7 +101,16 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         for (int i = 0; i < tmpAus.length; i++) {
             preferredStartingPositionsAustralia.add(tmpAus[i]);
             preferredStartingPositionsSouthAmerica.add(tmpSouth[i]);
+            preferredStartingActionsAustralia.add(RiskAction.select(tmpAus[i]));
+            preferredStartingActionsSouthAmerica.add(RiskAction.select(tmpSouth[i]));
         }
+
+        continents.add(preferredStartingPositionsAustralia);
+        continents.add(preferredStartingPositionsSouthAmerica);
+        continents.add(northAmerica);
+        continents.add(europe);
+        continents.add(africa);
+        continents.add(asia);
     }
 
     public HardDiskRisk() {
@@ -109,6 +131,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     public void setUp(int numberOfPlayers, int playerId){
         super.setUp(numberOfPlayers, playerId);
         this.mcTree.clear();
+        customSetup();
     }
 
     public void exploreNode(DoubleLinkedTree<McGameNode> node){
@@ -119,6 +142,156 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 node.add(new McGameNode(game, possibleAction, playerId));
             }
             node.getNode().setExplored();
+        }
+    }
+
+    private Set<RiskAction> getFreeTerritoriesInContinent(Set<RiskAction> freeTerritories, Set<RiskAction> contIds){
+        Set<RiskAction> temp = new HashSet<>(freeTerritories);
+        temp.retainAll(contIds);
+        return temp;
+    }
+    private Set<Integer> getFreeTerritoriesInContinentByID(Set<Integer> freeTerritories, Set<Integer> contIds){
+        Set<Integer> temp = new HashSet<>(freeTerritories);
+        temp.retainAll(contIds);
+        return temp;
+    }
+
+    private double[] getPercent(Risk game){
+        int[] occupiedTerrs = new int[]{0, 0, 0, 0};
+        for (int i = 0; i < game.getNumberOfPlayers(); i++) {
+            if (i == playerId) continue;
+            for (int terrId: game.getBoard().getTerritoriesOccupiedByPlayer(i)) {
+                if(northAmerica.contains(terrId)){
+                    occupiedTerrs[0]++;
+                } else if (europe.contains(terrId)){
+                    occupiedTerrs[1]++;
+                } else if (africa.contains(terrId)){
+                    occupiedTerrs[2]++;
+                } else if (asia.contains(terrId)){
+                    occupiedTerrs[3]++;
+                }
+            }
+        }
+        double[] percent = new double[4];
+        percent[0] = occupiedTerrs[0] / (double) northAmerica.size();
+        percent[1] = occupiedTerrs[1] / (double) europe.size();
+        percent[2] = occupiedTerrs[2] / (double) africa.size();
+        percent[3] = occupiedTerrs[3] / (double) asia.size();
+        return percent;
+    }
+
+    private void pruneMovesInSelectionPhase(Risk game){
+        Set<RiskAction> freeTerritories = new HashSet<RiskAction>(selectionPhase);
+        freeTerritories.retainAll(game.getPossibleActions());
+        if (!freeTerritories.isEmpty()){
+            // phase 1 or 2 of selectionPhase
+            this.log.debug("Selecting preferred territory");
+            var territories = (game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
+
+            // Determine free territories in south america and australia
+            Set<RiskAction> freeSouthAmericaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsSouthAmerica);
+            Set<RiskAction> freeAustraliaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsAustralia);
+            freeSouthAmericaTerritories.retainAll(preferredStartingActionsSouthAmerica);
+            if(!(freeAustraliaTerritories.isEmpty() && freeSouthAmericaTerritories.isEmpty())) {
+                // phase 1 of selectionPhase
+                if (freeSouthAmericaTerritories.isEmpty() || (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) && !freeAustraliaTerritories.isEmpty())) {
+                    log.debug("sp1: Selecting from Australia");
+                    selectPreferredTerritory(game, mcTree, preferredStartingActionsAustralia);
+                } else {
+                    log.debug("sp1: Selecting from South America");
+                    selectPreferredTerritory(game, mcTree , preferredStartingActionsSouthAmerica);
+                }
+            } else {
+                // phase 2 of selectionPhase
+                double[] percent = getPercent(game);
+
+                // select territory from continent with ID maxIndex
+                int maxIndex = 0;
+                for (int i = 0; i < percent.length; i++) {
+                    if(percent[i]>percent[maxIndex] && percent[i] < 0.99){
+                        maxIndex = i;
+                    }
+                }
+                // game.getBoard().getTerritoryOccupantId() == -1
+
+                Set<Integer> freeTerritoryIDs = freeTerritories.stream().mapToInt(RiskAction::selected).boxed().collect(Collectors.toSet());
+                Set<Integer> freeIDsInContinent = getFreeTerritoriesInContinentByID(freeTerritoryIDs, continents.get(maxIndex+2));
+                log.debug("Selecting from continent: " + maxIndex);
+                selectPreferredTerritory(game, mcTree , freeIDsInContinent.stream().map(RiskAction::select).collect(Collectors.toSet()));
+
+            }
+        } else {
+            if (placedTroupsCounter < 34){
+                // phase 3.1 of selectionPhase
+
+                Set<RiskAction> reinforceBorder = new HashSet<>();
+                int troopsAus = 0;
+                int troopsSouth = 0;
+
+                for (int i = 0; i < preferredStartingPositionsAustralia.size(); i++) {
+                    int[] positionsAustralia = preferredStartingPositionsAustralia.stream().mapToInt(a -> a).toArray();
+                    if(game.getBoard().getTerritoryOccupantId(positionsAustralia[i]) == playerId ) {
+                        troopsAus += game.getBoard().getTerritoryTroops(positionsAustralia[i]);
+                    }
+                }
+                for (int i = 0; i < preferredStartingPositionsSouthAmerica.size(); i++) {
+                    int[] positionsSouth = preferredStartingPositionsSouthAmerica.stream().mapToInt(a -> a).toArray();
+                    if(game.getBoard().getTerritoryOccupantId(positionsSouth[i]) == playerId ) {
+                        troopsSouth += game.getBoard().getTerritoryTroops(positionsSouth[i]);
+                    }
+                }
+                Set<Integer> toReinforce = new HashSet<>();
+                if(game.getBoard().getTerritoryOccupantId(39) == playerId && game.getBoard().getTerritoryTroops(39) < 7){
+                    toReinforce.add(39);
+                    reinforceTerritories(game, toReinforce);
+                } else if(troopsAus < 9) {
+                    reinforceTerritories(game, preferredStartingPositionsAustralia);
+                } else if(game.getBoard().getTerritoryOccupantId(10) == playerId && game.getBoard().getTerritoryTroops(10) < 5) {
+                    toReinforce.add(10);
+                    toReinforce.remove(39);
+                    reinforceTerritories(game, toReinforce);
+                } else if(game.getBoard().getTerritoryOccupantId(12) == playerId && game.getBoard().getTerritoryTroops(12) < 5) {
+                    toReinforce.add(12);
+                    toReinforce.remove(10);
+                    reinforceTerritories(game, toReinforce);
+                } else if(troopsSouth < 10){
+                    reinforceTerritories(game, preferredStartingPositionsSouthAmerica);
+                }
+            } else {
+                // phase 3.2 of selectionPhase
+                double[] percent = getPercent(game);
+                // select territory from continent with ID maxIndex
+                int maxIndex = -1;
+                for (int i = 0; i < percent.length; i++) {
+                    if((maxIndex == -1 || percent[i]>percent[maxIndex]) && percent[i] < 0.99){
+                        maxIndex = i;
+                    }
+                }
+
+                if(maxIndex != -1){
+                    reinforceContinent(game, continents.get(maxIndex+2));
+                }
+
+            }
+
+        }
+    }
+
+    private void reinforceContinent(Risk game, Set<Integer> continent){
+        reinforceTerritories(game, continent.stream().filter(a->!game.getBoard().neighboringEnemyTerritories(a).isEmpty()).collect(Collectors.toSet()));
+    }
+    private void reinforceTerritories(Risk game, Set<Integer> terrIds){
+        Set<Integer> temp  = new HashSet<>(mcTree.getChildrenByIdWhenReinforcing());
+        temp.retainAll(terrIds);
+        if (!temp.isEmpty()){
+            Iterator<McGameNode> iterator = mcTree.myChildrenIterator();
+
+            while (iterator.hasNext()) {
+
+                if(!temp.contains(iterator.next().getGame().getPreviousAction().reinforcedId())){
+                    iterator.remove();
+                }
+            }
         }
     }
 
@@ -139,18 +312,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         this.log.info("HardDiskRisk playing now. Is op: " + game.getBoard().isOccupyPhase() + ". Is fp: " + game.getBoard().isFortifyPhase()+ ". Is ap: " + game.getBoard().isAttackPhase()+ ". Is rp: " + game.getBoard().isReinforcementPhase());
 
         if(isSelectionPhase(game)) {
-
-            this.log.info("Selecting preferred territory");
-            var territories = ((RiskBoard)game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
-            RiskAction action = null;
-            if (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories)){
-                action = selectPreferredTerritory(game, preferredStartingPositionsAustralia);
-            }
-            if (action != null) return action;
-            action = selectPreferredTerritory(game, preferredStartingPositionsSouthAmerica);
-            if (action != null) return action;
-            this.log.info("Could not select preferred territory");
-
+            pruneMovesInSelectionPhase(game);
         }
         ArrayList<RiskAction> lol = new ArrayList<RiskAction>(game.getPossibleActions());
         return lol.get(random.nextInt(lol.size()));
