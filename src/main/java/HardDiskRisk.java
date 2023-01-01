@@ -3,8 +3,6 @@ import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
-import at.ac.tuwien.ifs.sge.util.Util;
-import at.ac.tuwien.ifs.sge.util.tree.Tree;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +69,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
       while (iterator.hasNext()) {
 
           if(!prefs.contains(iterator.next().getGame().getPreviousAction())){
+              log.debug("removing");
               iterator.remove();
           }
       }
@@ -207,6 +206,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             freeSouthAmericaTerritories.retainAll(preferredStartingActionsSouthAmerica);
             if(!(freeAustraliaTerritories.isEmpty() && freeSouthAmericaTerritories.isEmpty())) {
                 // phase 1 of selectionPhase
+                log.debug("" + freeSouthAmericaTerritories.isEmpty() + countPreferredTerritories(preferredStartingPositionsAustralia, territories) + countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) + freeAustraliaTerritories.isEmpty());
                 if (freeSouthAmericaTerritories.isEmpty() || (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) && !freeAustraliaTerritories.isEmpty())) {
                     log.debug("sp1: Selecting from Australia");
                     selectPreferredTerritory(game, mcTree, preferredStartingActionsAustralia);
