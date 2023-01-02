@@ -4,6 +4,7 @@ import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.util.Util;
+import at.ac.tuwien.ifs.sge.util.tree.Tree;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -155,13 +156,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     }
 
     public void exploreNode(MyDoubleLinkedTree node){
-        if (!(node.getNode().isExplored())) {
+        if (node.isLeaf()) {
             Risk game = ((McGameNode)node.getNode()).getGame();
             Set<RiskAction> possibleActions = game.getPossibleActions();
             for (RiskAction possibleAction : possibleActions){
                 node.add(new McGameNode(game, possibleAction, playerId));
             }
-            node.getNode().setExplored();
         }
     }
 
@@ -380,10 +380,80 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         for (var x:mcTree.getChildren()) {
             System.out.println(x);
         }
+
+        return MCTSSearch();
+
+        /*
         if(mcTree.getChildren().isEmpty()){
             log.error("No children in tree");
         }
         return mcTree.getChildren().get(random.nextInt(mcTree.getChildren().size())).getNode().getGame().getPreviousAction();
+
+         */
+    }
+
+    private RiskAction MCTSSearch() {
+        while (!shouldStopComputation()) {
+            MyDoubleLinkedTree tree = this.mcTree;
+            tree = mcSelection(tree);
+            exploreNode(tree);
+            boolean won = mcSimulation(tree, 128, 2);
+            mcBackPropagation(tree, won);
+        }
+    }
+
+    private boolean mcSimulation(MyDoubleLinkedTree tree, int i, int i1) {
+    }
+
+    private MyDoubleLinkedTree getBestUCT(List<MyDoubleLinkedTree> children, boolean useOwn){
+        int ind = 0;
+        double val = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < children.size(); i++) {
+            double temp = upperConfidenceBound(children.get(i), this.exploitationConstant);
+            temp += useOwn ? children.get(i).getNode().computeValue() : 0;
+            if (temp > val){
+                ind = i;
+                val = temp;
+            }
+        }
+        return children.get(ind);
+    }
+
+    private MyDoubleLinkedTree mcSelection(MyDoubleLinkedTree tree) {
+        int depth = 0;
+        while (!tree.isLeaf() && (depth++  % 31 != 0 || !shouldStopComputation())) {
+            List<MyDoubleLinkedTree> children = new ArrayList<>(tree.myGetChildren());
+            if (tree.getNode().getGame().getCurrentPlayer() < 0) {
+                RiskAction action = tree.getNode().getGame().determineNextAction();
+                for (MyDoubleLinkedTree child : children) {
+                    if (child.getNode().getGame().getPreviousAction().equals(action))
+                        tree = child;
+                }
+                continue;
+            }
+            tree = getBestUCT(tree.myGetChildren(), true);
+        }
+        return tree;
+    }
+
+    private void mcBackPropagation(MyDoubleLinkedTree tree, boolean win) {
+        /*
+        int depth = 0;
+        while (!tree.isRoot() && (depth++ % 31 != 0 || !shouldStopComputation())) {
+            tree = tree.getParent();
+            ((McGameNode)tree.getNode()).incPlays();
+            if (win)
+                ((McGameNode)tree.getNode()).incWins();
+        }*/
+    }
+
+    private double upperConfidenceBound(MyDoubleLinkedTree tree, double c) {
+        double w = tree.getNode().getWins();
+        double n = Math.max((tree.getNode()).getPlays(), 1);
+        double N = n;
+        if (!tree.isRoot())
+            N = tree.getParent().getNode().getPlays();
+        return w / n + c * Math.sqrt(Math.log(N) / n);
     }
 
     public void tearDown() {

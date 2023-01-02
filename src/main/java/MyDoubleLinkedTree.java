@@ -294,6 +294,10 @@ public class MyDoubleLinkedTree implements Tree<McGameNode> {
         return new ArrayList<>(children);
     }
 
+    public List<MyDoubleLinkedTree> myGetChildren() {
+        return new ArrayList<MyDoubleLinkedTree>(children);
+    }
+
     @Override
     public void dropParent() {
         parent = null;

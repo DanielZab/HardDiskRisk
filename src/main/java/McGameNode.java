@@ -129,7 +129,7 @@ public class McGameNode implements GameNode<RiskAction> {
             value += multiplier * troups * board.getNrOfTerritoriesOccupiedByPlayer(i) / Math.max(standardDeviation, 1);
         }
 
-        return value;
+        return value / 8400;
     }
 
 }
