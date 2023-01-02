@@ -27,8 +27,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private boolean reinforceSwitch = true;
 
-    /*
 
+/*
     private Comparator<Tree<McGameNode>> gameMcTreeUCTComparator;
 
     private Comparator<Tree<McGameNode>> gameMcTreeSelectionComparator;
@@ -48,8 +48,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     private Comparator<McGameNode> gameMcNodeGameComparator;
 
     private Comparator<Tree<McGameNode>> gameMcTreeGameComparator;
+*/
 
-     */
 
     private MyDoubleLinkedTree mcTree;
 
@@ -562,7 +562,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private Tree<McGameNode<A>> mcSelection(Tree<McGameNode<A>> tree) {
         int depth = 0;
-        while (!tree.isLeaf() && (depth++ % 31 != 0 || !shouldStopComputation())) {
+        while (!tree.isLeaf() && (depth++  % 31 != 0 || !shouldStopComputation())) {
             List<Tree<McGameNode<A>>> children = new ArrayList<>(tree.getChildren());
             if (((McGameNode<A>)tree.getNode()).getGame().getCurrentPlayer() < 0) {
                 A action = (A)((McGameNode<A>)tree.getNode()).getGame().determineNextAction();
