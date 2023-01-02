@@ -3,6 +3,7 @@ import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
+import at.ac.tuwien.ifs.sge.util.Util;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -65,14 +66,13 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     private void selectPreferredTerritory(Risk game, MyDoubleLinkedTree moveTree, Set<RiskAction> prefs){
 
       Iterator<McGameNode> iterator = moveTree.myChildrenIterator();
-
+        System.out.println(iterator.hasNext());
       while (iterator.hasNext()) {
-
           if(!prefs.contains(iterator.next().getGame().getPreviousAction())){
-              log.debug("removing");
               iterator.remove();
           }
       }
+        System.out.println(moveTree.getChildren().size());
 
     }
 
@@ -192,10 +192,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         return percent;
     }
 
+    private boolean isSelectionPhase1(){
+        return placedTroupsCounter <= 21;
+    }
+
     private void pruneMovesInSelectionPhase(Risk game){
         Set<RiskAction> freeTerritories = new HashSet<RiskAction>(selectionPhase);
         freeTerritories.retainAll(game.getPossibleActions());
-        if (!freeTerritories.isEmpty()){
+        if (isSelectionPhase1()){
             // phase 1 or 2 of selectionPhase
             this.log.debug("Selecting preferred territory");
             var territories = (game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
@@ -204,9 +208,9 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             Set<RiskAction> freeSouthAmericaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsSouthAmerica);
             Set<RiskAction> freeAustraliaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsAustralia);
             freeSouthAmericaTerritories.retainAll(preferredStartingActionsSouthAmerica);
+            System.out.println("Aus" + preferredStartingPositionsAustralia.size() + "Am" + preferredStartingPositionsSouthAmerica.size());
             if(!(freeAustraliaTerritories.isEmpty() && freeSouthAmericaTerritories.isEmpty())) {
                 // phase 1 of selectionPhase
-                log.debug("" + freeSouthAmericaTerritories.isEmpty() + countPreferredTerritories(preferredStartingPositionsAustralia, territories) + countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) + freeAustraliaTerritories.isEmpty());
                 if (freeSouthAmericaTerritories.isEmpty() || (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) && !freeAustraliaTerritories.isEmpty())) {
                     log.debug("sp1: Selecting from Australia");
                     selectPreferredTerritory(game, mcTree, preferredStartingActionsAustralia);
@@ -216,6 +220,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 }
             } else {
                 // phase 2 of selectionPhase
+                this.log.debug("Selecting in phase 2");
                 double[] percent = getPercent(game);
 
                 // select territory from continent with ID maxIndex
@@ -235,6 +240,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             }
         } else {
             if (placedTroupsCounter < 34){
+                this.log.debug("Selecting in phase 3.1");
                 // phase 3.1 of selectionPhase
 
                 Set<RiskAction> reinforceBorder = new HashSet<>();
@@ -271,6 +277,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                     reinforceTerritories(game, preferredStartingPositionsSouthAmerica);
                 }
             } else {
+                this.log.debug("Selecting in phase 3.2");
                 // phase 3.2 of selectionPhase
                 double[] percent = getPercent(game);
                 // select territory from continent with ID maxIndex
@@ -305,6 +312,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                     iterator.remove();
                 }
             }
+        } else {
+            log.debug("could not prune on reinforce phase");
         }
     }
 
@@ -315,7 +324,15 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             mcTree.setNode(new McGameNode(game, playerId));
         }
 
-        if (!mcTree.getNode().isExplored()){
+        this.log._tra("Searching for root of tree");
+        boolean foundRoot = Util.findRoot(this.mcTree, (Risk)game);
+        if (foundRoot) {
+            this.log._trace(", done.");
+        } else {
+            this.log._trace(", failed.");
+        }
+
+        if (true){
             exploreNode(mcTree);
         }
 
@@ -327,8 +344,10 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         if(isSelectionPhase(game)) {
             pruneMovesInSelectionPhase(game);
         }
-        ArrayList<RiskAction> lol = new ArrayList<RiskAction>(game.getPossibleActions());
-        return lol.get(random.nextInt(lol.size()));
+        for (var x:mcTree.getChildren()) {
+            System.out.println(x);
+        }
+        return mcTree.getChildren().get(random.nextInt(mcTree.getChildren().size())).getNode().getGame().getPreviousAction();
     }
 
     public void tearDown() {
