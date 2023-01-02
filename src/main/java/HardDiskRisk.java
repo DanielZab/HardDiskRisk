@@ -18,6 +18,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private final double exploitationConstant;
 
+    private final int[] phase32Distr = new int[]{6,4,3,3};
+
+    private int currentPhase32Terr = 0;
+
+    private int phase32Counter = 0;
+
+    private boolean reinforceSwitch = true;
+
     /*
 
     private Comparator<Tree<McGameNode>> gameMcTreeUCTComparator;
@@ -168,7 +176,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         return temp;
     }
 
-    private double[] getPercent(Risk game){
+    private double[] getPercent(Risk game, int toRemove){
         int[] occupiedTerrs = new int[]{0, 0, 0, 0};
         for (int i = 0; i < game.getNumberOfPlayers(); i++) {
             if (i == playerId) continue;
@@ -189,17 +197,37 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         percent[1] = occupiedTerrs[1] / (double) europe.size();
         percent[2] = occupiedTerrs[2] / (double) africa.size();
         percent[3] = occupiedTerrs[3] / (double) asia.size();
+
+        while(toRemove > 0){
+            int maxInd = -1;
+            double maxVal = 0;
+            for (int i = 0; i < 4; i++) {
+                if (maxVal < percent[i]){
+                    maxVal = percent[i];
+                    maxInd = i;
+                }
+            }
+            if (maxInd != -1){
+                percent[maxInd] = 0;
+            }
+            toRemove--;
+        }
         return percent;
     }
 
-    private boolean isSelectionPhase1(){
+    private boolean isSelectionPhase1or2(){
         return placedTroupsCounter <= 21;
+    }
+
+    private boolean hasFreeTerritories(Risk game, Set<Integer> continent, Set<RiskAction> freeTerritories){
+        Set<RiskAction> freeTerritoriesInContinent = getFreeTerritoriesInContinent(freeTerritories, continent.stream().map(RiskAction::select).collect(Collectors.toSet()));
+        return !freeTerritoriesInContinent.isEmpty();
     }
 
     private void pruneMovesInSelectionPhase(Risk game){
         Set<RiskAction> freeTerritories = new HashSet<RiskAction>(selectionPhase);
         freeTerritories.retainAll(game.getPossibleActions());
-        if (isSelectionPhase1()){
+        if (isSelectionPhase1or2()){
             // phase 1 or 2 of selectionPhase
             this.log.debug("Selecting preferred territory");
             var territories = (game.getBoard()).getTerritoriesOccupiedByPlayer(this.playerId);
@@ -221,12 +249,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             } else {
                 // phase 2 of selectionPhase
                 this.log.debug("Selecting in phase 2");
-                double[] percent = getPercent(game);
+                double[] percent = getPercent(game, 0);
 
                 // select territory from continent with ID maxIndex
-                int maxIndex = 0;
+                int maxIndex = -1;
                 for (int i = 0; i < percent.length; i++) {
-                    if(percent[i]>percent[maxIndex] && percent[i] < 0.99){
+                    if((maxIndex == -1 || percent[i]>percent[maxIndex]) && hasFreeTerritories(game, continents.get(i+2), freeTerritories)){
                         maxIndex = i;
                     }
                 }
@@ -239,7 +267,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
             }
         } else {
-            if (placedTroupsCounter < 34){
+            if (placedTroupsCounter <= 34){
                 this.log.debug("Selecting in phase 3.1");
                 // phase 3.1 of selectionPhase
 
@@ -260,12 +288,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                     }
                 }
                 Set<Integer> toReinforce = new HashSet<>();
-                if(game.getBoard().getTerritoryOccupantId(39) == playerId && game.getBoard().getTerritoryTroops(39) < 7){
+                if(reinforceSwitch && game.getBoard().getTerritoryOccupantId(39) == playerId && game.getBoard().getTerritoryTroops(39) < 7){
                     toReinforce.add(39);
                     reinforceTerritories(game, toReinforce);
-                } else if(troopsAus < 9) {
+                } else if(reinforceSwitch && troopsAus < 9) {
                     reinforceTerritories(game, preferredStartingPositionsAustralia);
-                } else if(game.getBoard().getTerritoryOccupantId(10) == playerId && game.getBoard().getTerritoryTroops(10) < 5) {
+                } else if(!reinforceSwitch && game.getBoard().getTerritoryOccupantId(10) == playerId && game.getBoard().getTerritoryTroops(10) < 5) {
                     toReinforce.add(10);
                     toReinforce.remove(39);
                     reinforceTerritories(game, toReinforce);
@@ -279,7 +307,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             } else {
                 this.log.debug("Selecting in phase 3.2");
                 // phase 3.2 of selectionPhase
-                double[] percent = getPercent(game);
+                double[] percent = getPercent(game, currentPhase32Terr);
                 // select territory from continent with ID maxIndex
                 int maxIndex = -1;
                 for (int i = 0; i < percent.length; i++) {
@@ -289,6 +317,10 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 }
 
                 if(maxIndex != -1){
+                    if (phase32Distr[currentPhase32Terr] <= ++phase32Counter){
+                        currentPhase32Terr++;
+                        phase32Counter = 0;
+                    }
                     reinforceContinent(game, continents.get(maxIndex+2));
                 }
 
@@ -346,6 +378,9 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         }
         for (var x:mcTree.getChildren()) {
             System.out.println(x);
+        }
+        if(mcTree.getChildren().isEmpty()){
+            log.error("No children in tree");
         }
         return mcTree.getChildren().get(random.nextInt(mcTree.getChildren().size())).getNode().getGame().getPreviousAction();
     }
