@@ -271,7 +271,7 @@ public class MyDoubleLinkedTree implements Tree<McGameNode> {
     }
 
     @Override
-    public Tree<McGameNode> getParent() {
+    public MyDoubleLinkedTree getParent() {
         return parent;
     }
 
@@ -279,6 +279,14 @@ public class MyDoubleLinkedTree implements Tree<McGameNode> {
     public void setParent(Tree<McGameNode> parent) {
         if (parent instanceof DoubleLinkedTree) {
             this.parent = (MyDoubleLinkedTree) parent;
+        } else {
+            this.parent = new MyDoubleLinkedTree(parent);
+        }
+    }
+
+    public void MySetParent(MyDoubleLinkedTree parent) {
+        if (parent instanceof MyDoubleLinkedTree){
+            this.parent = parent;
         } else {
             this.parent = new MyDoubleLinkedTree(parent);
         }

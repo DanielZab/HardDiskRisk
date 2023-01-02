@@ -400,10 +400,11 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             boolean won = mcSimulation(tree, 128, 2);
             mcBackPropagation(tree, won);
         }
+        return getBestUCT(mcTree.myGetChildren(), true).getNode().getGame().getPreviousAction();
     }
 
-    private boolean mcSimulation(MyDoubleLinkedTree tree, int i, int i1) {
-    }
+//    private boolean mcSimulation(MyDoubleLinkedTree tree, int i, int i1) {
+//    }
 
     private MyDoubleLinkedTree getBestUCT(List<MyDoubleLinkedTree> children, boolean useOwn){
         int ind = 0;
@@ -437,14 +438,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     }
 
     private void mcBackPropagation(MyDoubleLinkedTree tree, boolean win) {
-        /*
+
         int depth = 0;
         while (!tree.isRoot() && (depth++ % 31 != 0 || !shouldStopComputation())) {
             tree = tree.getParent();
-            ((McGameNode)tree.getNode()).incPlays();
+            (tree.getNode()).incPlays();
             if (win)
-                ((McGameNode)tree.getNode()).incWins();
-        }*/
+                (tree.getNode()).incWins();
+        }
     }
 
     private double upperConfidenceBound(MyDoubleLinkedTree tree, double c) {
@@ -454,6 +455,58 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         if (!tree.isRoot())
             N = tree.getParent().getNode().getPlays();
         return w / n + c * Math.sqrt(Math.log(N) / n);
+    }
+
+    private boolean mcSimulation(MyDoubleLinkedTree tree, int simulationsAtLeast, int proportion) {
+        int simulationsDone = (tree.getNode()).getPlays();
+        if (simulationsDone < simulationsAtLeast && shouldStopComputation(proportion)) {
+            int simulationsLeft = simulationsAtLeast - simulationsDone;
+            return mcSimulation(tree, nanosLeft() / simulationsLeft);
+        }
+        if (simulationsDone == 0)
+            return mcSimulation(tree, this.TIMEOUT / 2L - nanosElapsed());
+        return mcSimulation(tree);
+    }
+
+    private boolean mcSimulation(MyDoubleLinkedTree tree) {
+        Risk game = (tree.getNode()).getGame();
+        int depth = 0;
+        while (!game.isGameOver() && (depth++ % 31 != 0 || !shouldStopComputation())) {
+            if (game.getCurrentPlayer() < 0) {
+                game = (Risk) game.doAction();
+                continue;
+            }
+            game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
+        }
+        return mcHasWon(game);
+    }
+
+    private boolean mcSimulation(MyDoubleLinkedTree tree, long timeout) {
+        long startTime = System.nanoTime();
+        Risk game = (tree.getNode()).getGame();
+        int depth = 0;
+        while (!game.isGameOver() && System.nanoTime() - startTime <= timeout && (depth++ % 31 != 0 ||
+                !shouldStopComputation())) {
+            if (game.getCurrentPlayer() < 0) {
+                game = (Risk) game.doAction();
+                continue;
+            }
+            game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
+        }
+        return mcHasWon(game);
+    }
+
+    private boolean mcHasWon(Risk game) {
+        double[] evaluation = game.getGameUtilityValue();
+        double score = Util.scoreOutOfUtility(evaluation, this.playerId);
+        if (!game.isGameOver() && score > 0.0D) {
+            evaluation = game.getGameHeuristicValue();
+            score = Util.scoreOutOfUtility(evaluation, this.playerId);
+        }
+        boolean win = (score == 1.0D);
+        boolean tie = (score > 0.0D);
+        win = (win || (tie && this.random.nextBoolean()));
+        return win;
     }
 
     public void tearDown() {
