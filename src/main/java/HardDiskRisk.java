@@ -297,13 +297,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                     toReinforce.add(10);
                     toReinforce.remove(39);
                     reinforceTerritories(game, toReinforce);
-                } else if(game.getBoard().getTerritoryOccupantId(12) == playerId && game.getBoard().getTerritoryTroops(12) < 5) {
+                } else if(!reinforceSwitch && game.getBoard().getTerritoryOccupantId(12) == playerId && game.getBoard().getTerritoryTroops(12) < 5) {
                     toReinforce.add(12);
                     toReinforce.remove(10);
                     reinforceTerritories(game, toReinforce);
-                } else if(troopsSouth < 10){
+                } else if(!reinforceSwitch && troopsSouth < 10){
                     reinforceTerritories(game, preferredStartingPositionsSouthAmerica);
                 }
+                reinforceSwitch = !reinforceSwitch;
             } else {
                 this.log.debug("Selecting in phase 3.2");
                 // phase 3.2 of selectionPhase
