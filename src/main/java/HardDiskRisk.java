@@ -75,13 +75,11 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     private void selectPreferredTerritory(Risk game, MyDoubleLinkedTree moveTree, Set<RiskAction> prefs){
 
       Iterator<McGameNode> iterator = moveTree.myChildrenIterator();
-        System.out.println(iterator.hasNext());
       while (iterator.hasNext()) {
           if(!prefs.contains(iterator.next().getGame().getPreviousAction())){
               iterator.remove();
           }
       }
-        System.out.println(moveTree.getChildren().size());
 
     }
 
@@ -236,7 +234,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             Set<RiskAction> freeSouthAmericaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsSouthAmerica);
             Set<RiskAction> freeAustraliaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsAustralia);
             freeSouthAmericaTerritories.retainAll(preferredStartingActionsSouthAmerica);
-            System.out.println("Aus" + preferredStartingPositionsAustralia.size() + "Am" + preferredStartingPositionsSouthAmerica.size());
+            log.debug("Aus" + preferredStartingPositionsAustralia.size() + "Am" + preferredStartingPositionsSouthAmerica.size());
             if(!(freeAustraliaTerritories.isEmpty() && freeSouthAmericaTerritories.isEmpty())) {
                 // phase 1 of selectionPhase
                 if (freeSouthAmericaTerritories.isEmpty() || (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) && !freeAustraliaTerritories.isEmpty())) {
@@ -376,9 +374,6 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
         if(isSelectionPhase(game)) {
             pruneMovesInSelectionPhase(game);
-        }
-        for (var x:mcTree.getChildren()) {
-            System.out.println(x);
         }
 
         return MCTSSearch();

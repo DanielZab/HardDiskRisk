@@ -15,8 +15,6 @@ public class MyDoubleLinkedTree implements Tree<McGameNode> {
                 list.add((MyDoubleLinkedTree) l);
             }
         }
-
-        System.out.println("Amount Of children:" + getChildren().size());
         Iterator<MyDoubleLinkedTree> iter = list.iterator();
         return new Iterator<McGameNode>() {
             int i = -1;
