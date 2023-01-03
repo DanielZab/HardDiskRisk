@@ -363,9 +363,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             this.log._trace(", failed.");
         }
 
-        if (true){
-            exploreNode(mcTree);
-        }
+        exploreNode(mcTree);
 
         if (game.getCurrentPlayer() == playerId){
             placedTroupsCounter++;
