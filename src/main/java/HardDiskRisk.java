@@ -422,7 +422,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private MyDoubleLinkedTree mcSelection(MyDoubleLinkedTree tree) {
         int depth = 0;
-        while (!tree.isLeaf() && (depth++  % 31 != 0 || !shouldStopComputation())) {
+        while (!tree.isLeaf() && (depth++ % 31 != 0 || !shouldStopComputation())) {
             List<MyDoubleLinkedTree> children = new ArrayList<>(tree.myGetChildren());
             if (tree.getNode().getGame().getCurrentPlayer() < 0) {
                 RiskAction action = tree.getNode().getGame().determineNextAction();
@@ -444,7 +444,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             tree = tree.getParent();
             (tree.getNode()).incPlays();
             if (win)
-                (tree.getNode()).incWins();
+                tree.getNode().incWins();
         }
     }
 
@@ -465,20 +465,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         }
         if (simulationsDone == 0)
             return mcSimulation(tree, this.TIMEOUT / 2L - nanosElapsed());
-        return mcSimulation(tree);
-    }
-
-    private boolean mcSimulation(MyDoubleLinkedTree tree) {
-        Risk game = (tree.getNode()).getGame();
-        int depth = 0;
-        while (!game.isGameOver() && (depth++ % 31 != 0 || !shouldStopComputation())) {
-            if (game.getCurrentPlayer() < 0) {
-                game = (Risk) game.doAction();
-                continue;
-            }
-            game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
-        }
-        return mcHasWon(game);
+        return mcSimulation(tree, Long.MAX_VALUE);
     }
 
     private boolean mcSimulation(MyDoubleLinkedTree tree, long timeout) {
@@ -491,7 +478,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 game = (Risk) game.doAction();
                 continue;
             }
-            game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
+            if (this.random.nextDouble()< 0.5)
+                game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
+            else {
+                final Risk temp = game;
+                game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? a: b).get().getGame();
+            }
         }
         return mcHasWon(game);
     }
@@ -503,10 +495,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             evaluation = game.getGameHeuristicValue();
             score = Util.scoreOutOfUtility(evaluation, this.playerId);
         }
-        boolean win = (score == 1.0D);
-        boolean tie = (score > 0.0D);
-        win = (win || (tie && this.random.nextBoolean()));
-        return win;
+        return score == 1 || (score != 0 && this.random.nextBoolean());
     }
 
     public void tearDown() {
