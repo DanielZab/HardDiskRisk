@@ -358,6 +358,25 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         }
     }
 
+    private boolean checkIfReinforceable(Risk game, int TerID) {
+
+        if (game.getBoard().isFortifyPhase() && game.getBoard().getTerritoryOccupantId(TerID) != playerId) return false;
+
+        //checking if TerID is a border
+        if (game.getBoard().neighboringEnemyTerritories(TerID).size() > 0) {
+            return true;
+            //checking if any neighboring territories of TerID are borders
+        } else if (game.getBoard().neighboringFriendlyTerritories(TerID).stream()
+                .filter(a -> game.getBoard().neighboringEnemyTerritories(a).size() > 0)
+                .collect(Collectors.toSet()).size() > 0) return true;
+
+        return false;
+    }
+
+    public void tryPython(){
+
+    }
+
     public RiskAction computeNextAction(Risk game, long computationTime, TimeUnit timeUnit) {
         setTimers(computationTime, timeUnit);
 
@@ -368,7 +387,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         tryPython();
 
         this.log._tra("Searching for root of tree");
-        boolean foundRoot = Util.findRoot(this.mcTree, (Risk)game);
+        // TODO: Improve
+        boolean foundRoot = Util.findRoot(this.mcTree, game);
         if (foundRoot) {
             this.log._trace(", done.");
         } else {
