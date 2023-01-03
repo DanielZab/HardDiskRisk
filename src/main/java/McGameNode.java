@@ -18,6 +18,16 @@ public class McGameNode implements GameNode<RiskAction> {
 
     private int playerID;
 
+    public double getPriority() {
+        return priority;
+    }
+
+    private double priority = 1;
+
+    public void setPriority(double priority) {
+        this.priority = priority;
+    }
+
     public McGameNode(int playerID) {
         this(null, playerID);
     }

@@ -328,6 +328,16 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         }
     }
 
+    private void pruneReinforce(Risk game){
+
+        Iterator<McGameNode> iterator = mcTree.myChildrenIterator();
+        while (iterator.hasNext()) {
+            var temp = iterator.next();
+            if(!temp.toString().startsWith("C") && !checkIfReinforceable(game, temp.getGame().getPreviousAction().reinforcedId())){
+                iterator.remove();
+            }
+        }
+    }
     private void reinforceContinent(Risk game, Set<Integer> continent){
         reinforceTerritories(game, continent.stream().filter(a->!game.getBoard().neighboringEnemyTerritories(a).isEmpty()).collect(Collectors.toSet()));
     }
@@ -355,6 +365,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             mcTree.setNode(new McGameNode(game, playerId));
         }
 
+        tryPython();
+
         this.log._tra("Searching for root of tree");
         boolean foundRoot = Util.findRoot(this.mcTree, (Risk)game);
         if (foundRoot) {
@@ -369,9 +381,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             placedTroupsCounter++;
         }
         this.log.info("HardDiskRisk playing now. Is op: " + game.getBoard().isOccupyPhase() + ". Is fp: " + game.getBoard().isFortifyPhase()+ ". Is ap: " + game.getBoard().isAttackPhase()+ ". Is rp: " + game.getBoard().isReinforcementPhase());
-
         if(isSelectionPhase(game)) {
             pruneMovesInSelectionPhase(game);
+        }
+
+        if (game.getBoard().isReinforcementPhase() && !isSelectionPhase(game)){
+            pruneReinforce(game);
         }
 
         return MCTSSearch();
@@ -413,6 +428,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         for (int i = 0; i < children.size(); i++) {
             double temp = upperConfidenceBound(children.get(i), this.exploitationConstant);
             temp += useOwn ? ((children.get(i).getNode().getGame().getCurrentPlayer() == playerId) ? 1 : -1) * children.get(i).getNode().computeValue() : 0;
+            temp *= children.get(i).getNode().getPriority();
             if (temp > val){
                 ind = i;
                 val = temp;
