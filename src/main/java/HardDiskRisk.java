@@ -475,7 +475,12 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
             else {
                 final Risk temp = game;
-                game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? a: b).get().getGame();
+                if (game.getCurrentPlayer() == playerId){
+                    game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? a: b).get().getGame();
+                } else {
+                    game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? b: a).get().getGame();
+                }
+
             }
         }
         return mcHasWon(game);

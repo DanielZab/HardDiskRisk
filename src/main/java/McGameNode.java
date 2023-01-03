@@ -103,6 +103,11 @@ public class McGameNode implements GameNode<RiskAction> {
     */
     public double computeValue() {
 
+        Risk game = this.game;
+        if (game.getCurrentPlayer() < 0){
+            game = (Risk) game.doAction(game.determineNextAction());
+        }
+
         int playerCount = game.getNumberOfPlayers();
 
         RiskBoard board = ((RiskBoard)game.getBoard());
