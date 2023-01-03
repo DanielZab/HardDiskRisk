@@ -385,6 +385,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
          */
     }
 
+    private RiskAction getNextBest(){
+        int maxPlays = mcTree.getChildren().stream().mapToInt(a->a.getNode().getPlays()).max().getAsInt();
+        Set<Tree<McGameNode>> temp = mcTree.getChildren().stream().filter(a -> a.getNode().getPlays() >= maxPlays).collect(Collectors.toSet());
+        int maxWins = temp.stream().mapToInt(a->a.getNode().getWins()).max().getAsInt();
+        temp = temp.stream().filter(a -> a.getNode().getWins() >= maxWins).collect(Collectors.toSet());
+        return temp.stream().reduce((a,b) -> a.getNode().computeValue() > b.getNode().computeValue() ? a : b).get().getNode().getGame().getPreviousAction();
+    }
+
     private RiskAction MCTSSearch() {
         while (!shouldStopComputation()) {
             MyDoubleLinkedTree tree = this.mcTree;
@@ -393,7 +401,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             boolean won = mcSimulation(tree, 128, 2);
             mcBackPropagation(tree, won);
         }
-        return getBestUCT(mcTree.myGetChildren(), true).getNode().getGame().getPreviousAction();
+        return getNextBest();
     }
 
 //    private boolean mcSimulation(MyDoubleLinkedTree tree, int i, int i1) {
@@ -404,7 +412,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         double val = Double.NEGATIVE_INFINITY;
         for (int i = 0; i < children.size(); i++) {
             double temp = upperConfidenceBound(children.get(i), this.exploitationConstant);
-            temp += useOwn ? children.get(i).getNode().computeValue() : 0;
+            temp += useOwn ? ((children.get(i).getNode().getGame().getCurrentPlayer() == playerId) ? 1 : -1) * children.get(i).getNode().computeValue() : 0;
             if (temp > val){
                 ind = i;
                 val = temp;
