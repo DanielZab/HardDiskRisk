@@ -5,7 +5,9 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.util.node.GameNode;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class McGameNode implements GameNode<RiskAction> {
     private Risk game;
@@ -111,6 +113,40 @@ public class McGameNode implements GameNode<RiskAction> {
     /*
         determines and quantifies the situation for our player
     */
+
+    public static double sigmoid(double x, double x50L, double x50U, double ymin, double ymax){
+        double a = (x50L + x50U) / 2;
+        double b = 2 / Math.abs(x50L - x50U);
+        double c = ymin;
+        double d = ymax - c;
+
+        double y = c + ( d / ( 1 + Math.pow(Math.E,  b * (x - a))));
+        return y;
+    }
+
+    private double getContinentMultiplier(int playerID){
+        double tempMult = 1;
+        for (Set<Integer> cont:HardDiskRisk.continents) {
+            int temp = cont.size();
+            cont.retainAll(game.getBoard().getTerritoriesOccupiedByPlayer(playerID));
+            if (cont.size() == temp){
+                tempMult += 0.5 + temp / 10.0;
+            };
+        }
+        return tempMult;
+    }
+
+    private int getTroupsOfPlayer(int i, RiskBoard board, ArrayList<Integer> troopArray){
+        int troops = 0;
+        for (int terrId:board.getTerritoriesOccupiedByPlayer(i)) {
+            if (board.getMobileTroops(terrId) > 0){
+                troops += board.getMobileTroops(terrId);
+                troopArray.add(board.getTerritoryTroops(terrId));
+            }
+        }
+        return troops;
+    }
+
     public double computeValue() {
 
         Risk game = this.game;
@@ -126,22 +162,23 @@ public class McGameNode implements GameNode<RiskAction> {
         // Determine value for each player
         for (int i = 0; i < playerCount; i++) {
 
-            // Count amount of troups of player
-            int troups = 0;
-            ArrayList<Integer> troupArray = new ArrayList<Integer>();
-            for (int terrId:board.getTerritoriesOccupiedByPlayer(i)) {
-                troups += board.getTerritoryTroops(terrId);
-                troupArray.add(board.getTerritoryTroops(terrId));
-            }
+            // Count amount of mobile troops of player
+            ArrayList<Integer> troopArray = new ArrayList<Integer>();
+            int troops = getTroupsOfPlayer(i, game.getBoard(), troopArray);
 
-            // Determine mean and standard deviation of the distribution of the troups
-            double mean = troupArray.stream().mapToDouble(a -> a).sum() / troupArray.size();
-            double standardDeviation = Math.sqrt(troupArray.stream().mapToDouble(a -> Math.pow(a - mean, 2)).sum());
+            double standardDeviation = 1;
+            if (troopArray.size() > 0){
+                // Determine mean and standard deviation of the distribution of the troups
+                double mean = troopArray.stream().mapToDouble(a -> a).sum() / troopArray.size();
+                standardDeviation = Math.sqrt(troopArray.stream().mapToDouble(a -> Math.pow(a - mean, 2)).sum());
+            }
 
             // Assign negative multiplier if player is enemy, 1 otherwise
             int multiplier = (i == playerID) ? 1 : -1/ Math.max(playerCount-1, 1);
+            double troopMult = (((double)troops) / Math.max((troops + getTroupsOfPlayer(1 - i, game.getBoard(), new ArrayList<>())),1));
+            double terrMult = Math.pow(board.getNrOfTerritoriesOccupiedByPlayer(i)/21.0, 2);
 
-            value += multiplier * troups * board.getNrOfTerritoriesOccupiedByPlayer(i) / Math.max(standardDeviation, 1);
+            value += getCardMult(i) * getContinentMultiplier(i) * multiplier * troopMult * terrMult / Math.sqrt(Math.max(standardDeviation, 1));
         }
 
         return value / 8400;

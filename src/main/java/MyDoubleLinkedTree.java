@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 public class MyDoubleLinkedTree implements Tree<McGameNode> {
 
-
     public Iterator<McGameNode> myChildrenIterator() {
 
         ArrayList<MyDoubleLinkedTree> list = new ArrayList<>();

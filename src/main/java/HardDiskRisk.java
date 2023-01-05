@@ -6,6 +6,10 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.util.Util;
 import at.ac.tuwien.ifs.sge.util.tree.Tree;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -53,7 +57,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private MyDoubleLinkedTree mcTree;
 
-    ArrayList<Set<Integer>> continents = new ArrayList<>();
+    public static ArrayList<Set<Integer>> continents = new ArrayList<>();
 
     // Custom variables and functions
 
@@ -222,6 +226,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         return !freeTerritoriesInContinent.isEmpty();
     }
 
+    int counterAus = 0;
+    int counterAm = 0;
     private void pruneMovesInSelectionPhase(Risk game){
         Set<RiskAction> freeTerritories = new HashSet<RiskAction>(selectionPhase);
         freeTerritories.retainAll(game.getPossibleActions());
@@ -234,15 +240,18 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             Set<RiskAction> freeSouthAmericaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsSouthAmerica);
             Set<RiskAction> freeAustraliaTerritories = getFreeTerritoriesInContinent(freeTerritories, preferredStartingActionsAustralia);
             freeSouthAmericaTerritories.retainAll(preferredStartingActionsSouthAmerica);
-            log.debug("Aus" + preferredStartingPositionsAustralia.size() + "Am" + preferredStartingPositionsSouthAmerica.size());
+            log.debug("Aus" + freeAustraliaTerritories.size() + "Am" + freeSouthAmericaTerritories.size());
+            log.debug(preferredStartingActionsAustralia.size());
             if(!(freeAustraliaTerritories.isEmpty() && freeSouthAmericaTerritories.isEmpty())) {
                 // phase 1 of selectionPhase
-                if (freeSouthAmericaTerritories.isEmpty() || (countPreferredTerritories(preferredStartingPositionsAustralia, territories) < countPreferredTerritories(preferredStartingPositionsSouthAmerica, territories) && !freeAustraliaTerritories.isEmpty())) {
+                if (freeSouthAmericaTerritories.isEmpty() || (counterAus <= counterAm && !freeAustraliaTerritories.isEmpty())) {
                     log.debug("sp1: Selecting from Australia");
                     selectPreferredTerritory(game, mcTree, preferredStartingActionsAustralia);
+                    counterAus++;
                 } else {
                     log.debug("sp1: Selecting from South America");
                     selectPreferredTerritory(game, mcTree , preferredStartingActionsSouthAmerica);
+                    counterAm++;
                 }
             } else {
                 // phase 2 of selectionPhase
@@ -376,6 +385,84 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     public void tryPython(){
 
     }
+    private void writeState(List<String> msges, double value){
+        File file = new File("Trainingdata.csv");
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(file, true);
+            for (String msg: msges) {
+                writer.write(msg + ", " + value + '\n');
+            }
+            writer.close();
+        } catch (IOException ioe){
+            System.err.println(ioe);
+        }
+    }
+
+    boolean newTurn = true;
+    private int defTemp = -1;
+    private int attTemp = -1;
+    private String actionToString(Risk game, RiskAction action){
+        String msg = "";
+        if(action.isEndPhase()){
+            msg += "0, -1, -1, -1";
+        } else if (action.isBonus()){
+            msg += "1, -1, -1, -1";
+        } else if (action.isCardIds()){
+            msg += "2, -1, -1, -1";
+        } else if (game.getBoard().isOccupyPhase()){
+            msg += "3, "+ attTemp +", " + defTemp + ", " + action.troops();
+        } else if (game.getBoard().isReinforcementPhase()){
+            msg += "4, "+ -1 +", " + action.reinforcedId() + ", " + action.troops();
+        } else if (game.getBoard().isFortifyPhase()){
+            msg += "5, "+ action.fortifyingId() +", " + action.fortifiedId() + ", " + action.troops();
+        } else if (game.getBoard().isAttackPhase()){
+            defTemp = action.defendingId();
+            attTemp = action.attackingId();
+            msg += "6, "+ action.attackingId() +", " + action.defenderCasualties() + ", " + action.troops();
+        } else {
+            throw new NoSuchElementException("Unrecognized attack");
+        }
+        return msg;
+    }
+
+    Queue<List<String>> messages = new ArrayDeque<>();
+    List<String> current;
+    private void printState(Risk game, RiskAction action){
+        StringBuilder msg = new StringBuilder("" + playerId);
+        for (int i: game.getBoard().getTerritoryIds()){
+            int temp = -1;
+            if (game.getBoard().getTerritoryOccupantId(i) == playerId) temp = 1;
+            msg.append(", ").append(game.getBoard().getTerritoryTroops(i) * temp);
+        }
+        int counter = 0;
+        for (int i = 0; i < game.getBoard().getNumberOfCards(); i++) {
+            if (game.getBoard().getPlayerCards(playerId).contains(i)) {
+                msg.append(", ").append(i);
+                counter++;
+            };
+
+        }
+        for (int i = counter; i < 5; i++) {
+            msg.append(", ").append(-1);
+        }
+        msg.append(", ").append(game.getBoard().getCardsLeft()).append(", ").append(game.getBoard().getTradeInBonus());
+        msg.append(", ").append(
+                game.getBoard().isReinforcementPhase() ? 0 :
+                (game.getBoard().isAttackPhase() ? 1 :
+                (game.getBoard().isOccupyPhase() ? 2 :
+                (game.getBoard().isFortifyPhase() ? 3 : 4))));
+        msg.append(", ").append(mcTree.getNode().computeValue()).append(", ").append(actionToString(game, action));
+
+        if (newTurn){
+            current = new ArrayList<>();
+            messages.add(current);
+        }
+        current.add(msg.toString());
+        if (messages.size() > 2){
+            writeState(messages.poll(), mcTree.getNode().computeValue());
+        }
+    }
 
     public RiskAction computeNextAction(Risk game, long computationTime, TimeUnit timeUnit) {
         setTimers(computationTime, timeUnit);
@@ -383,11 +470,9 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         if (mcTree.getNode() == null){
             mcTree.setNode(new McGameNode(game, playerId));
         }
-
         tryPython();
 
         this.log._tra("Searching for root of tree");
-        // TODO: Improve
         boolean foundRoot = Util.findRoot(this.mcTree, game);
         if (foundRoot) {
             this.log._trace(", done.");
@@ -409,7 +494,11 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             pruneReinforce(game);
         }
 
-        return MCTSSearch();
+        System.gc();
+
+        RiskAction nextAction = MCTSSearch();
+        printState(game, nextAction);
+        return nextAction;
 
         /*
         if(mcTree.getChildren().isEmpty()){
@@ -425,7 +514,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         Set<Tree<McGameNode>> temp = mcTree.getChildren().stream().filter(a -> a.getNode().getPlays() >= maxPlays).collect(Collectors.toSet());
         int maxWins = temp.stream().mapToInt(a->a.getNode().getWins()).max().getAsInt();
         temp = temp.stream().filter(a -> a.getNode().getWins() >= maxWins).collect(Collectors.toSet());
-        return temp.stream().reduce((a,b) -> a.getNode().computeValue() > b.getNode().computeValue() ? a : b).get().getNode().getGame().getPreviousAction();
+        return temp.stream().reduce((a,b) -> a.getNode().getGame().getHeuristicValue(playerId) > b.getNode().getGame().getHeuristicValue(playerId) ? a : b).get().getNode().getGame().getPreviousAction();
     }
 
     private RiskAction MCTSSearch() {
@@ -469,7 +558,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 }
                 continue;
             }
-            tree = getBestUCT(tree.myGetChildren(), true);
+            tree = getBestUCT(tree.myGetChildren(), false);
         }
         return tree;
     }
@@ -515,17 +604,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
                 game = (Risk) game.doAction();
                 continue;
             }
-            if (this.random.nextDouble()< 0.5)
-                game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
-            else {
-                final Risk temp = game;
-                if (game.getCurrentPlayer() == playerId){
-                    game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? a: b).get().getGame();
-                } else {
-                    game = game.getPossibleActions().stream().map(a -> new McGameNode(temp, a, playerId)).reduce((a,b)->a.computeValue() > b.computeValue() ? b: a).get().getGame();
-                }
-
-            }
+            game = (Risk) game.doAction(Util.selectRandom(game.getPossibleActions(), this.random));
         }
         return mcHasWon(game);
     }
