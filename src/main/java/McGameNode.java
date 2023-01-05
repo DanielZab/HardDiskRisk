@@ -2,6 +2,7 @@ import at.ac.tuwien.ifs.sge.game.Game;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskCard;
 import at.ac.tuwien.ifs.sge.util.node.GameNode;
 
 import java.util.ArrayList;
@@ -156,7 +157,7 @@ public class McGameNode implements GameNode<RiskAction> {
 
         int playerCount = game.getNumberOfPlayers();
 
-        RiskBoard board = ((RiskBoard)game.getBoard());
+        RiskBoard board = (game.getBoard());
         double value = 0;
 
         // Determine value for each player
@@ -180,8 +181,46 @@ public class McGameNode implements GameNode<RiskAction> {
 
             value += getCardMult(i) * getContinentMultiplier(i) * multiplier * troopMult * terrMult / Math.sqrt(Math.max(standardDeviation, 1));
         }
+        return Math.min(Math.max(sigmoid(-value, -0.85, 0.85, 0, 1), 0), 1);
+    }
 
-        return value / 8400;
+    private double getCardMult(int playerID) {
+
+        /*int cardsLeft = game.getBoard().getCardsLeft() + game.getBoard().getPlayerCards(playerID).size() + game.getBoard().getPlayerCards(1 - playerID).size();
+        double mult = cardsLeft > 0 ? 1 + game.getBoard().getPlayerCards(playerID).size() / (double) (cardsLeft) : 1;*/
+
+        double mult = 1;
+
+        List<RiskCard> currentCards = game.getBoard().getPlayerCards(playerID);
+
+        int infCount = 0;
+        int cavCount = 0;
+        int artCount = 0;
+        int joker = 0;
+
+
+        for (RiskCard card: currentCards) {
+
+            if(card.getCardType() == 0) {
+                joker++;
+            } else if(card.getCardType() == 1){
+                infCount++;
+            } else if(card.getCardType() == 2){
+                artCount++;
+            } else if(card.getCardType() == 3) {
+                cavCount++;
+            }
+        }
+        int bonus = game.getBoard().getTradeInBonus();
+        int allTroops = getTroupsOfPlayer(0, game.getBoard(),new ArrayList<Integer>()) + getTroupsOfPlayer(1, game.getBoard(), new ArrayList<Integer>());
+        if(allTroops == 0) allTroops = 1;
+        if(infCount + joker >=3 || cavCount + joker >=3 || artCount + joker >= 3 ||
+            Math.min(joker, 1) + Math.min(infCount, 1) + Math.min(artCount, 1) + Math.min(cavCount, 1) >= 3) {
+            mult += bonus/(double)allTroops;
+        } else if (currentCards.size() > 0) {
+            mult += (bonus/(double)allTroops) * currentCards.size() / 5;
+        }
+    return mult;
     }
 
 }
