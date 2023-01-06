@@ -6,13 +6,11 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.util.Util;
 import at.ac.tuwien.ifs.sge.util.tree.Tree;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.lang.Process.*;
 
 public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements GameAgent<Risk, RiskAction> {
     private static final int MAX_PRINT_THRESHOLD = 97;
@@ -57,7 +55,9 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private MyDoubleLinkedTree mcTree;
 
-    public static ArrayList<Set<Integer>> continents = new ArrayList<>();
+    public static ArrayList<Set<Integer>> continents = new ArrayList<>(Arrays.asList(new HashSet<Integer>(Arrays.asList(38,39,40,41)), new HashSet<Integer>(Arrays.asList(9,10,11,12)), new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8)),
+    new HashSet<Integer>(Arrays.asList(13,14,15,16,17,18,19)), new HashSet<Integer>(Arrays.asList(20,21,22,23,24,25)), new HashSet<Integer>(Arrays.asList(26,27,28,29,30,31,32,33,34,35,36,37))));
+
 
     // Custom variables and functions
 
@@ -105,35 +105,15 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             selectionPhase.add(RiskAction.select(i));
         }
 
-        for (int i = 0; i < 9; i++) {
-            northAmerica.add(i);
-        }
-        for (int i = 13; i < 20; i++) {
-            europe.add(i);
-        }
-        for (int i = 20; i < 26; i++) {
-            africa.add(i);
-        }
-        for (int i = 26; i < 38; i++) {
-            asia.add(i);
-        }
-
         int[] tmpAus = {38,39,40,41};
         int[] tmpSouth = {9,10,11,12};
 
         for (int i = 0; i < tmpAus.length; i++) {
-            preferredStartingPositionsAustralia.add(tmpAus[i]);
-            preferredStartingPositionsSouthAmerica.add(tmpSouth[i]);
             preferredStartingActionsAustralia.add(RiskAction.select(tmpAus[i]));
             preferredStartingActionsSouthAmerica.add(RiskAction.select(tmpSouth[i]));
         }
 
-        continents.add(preferredStartingPositionsAustralia);
-        continents.add(preferredStartingPositionsSouthAmerica);
-        continents.add(northAmerica);
-        continents.add(europe);
-        continents.add(africa);
-        continents.add(asia);
+
     }
 
     public HardDiskRisk() {
@@ -391,8 +371,43 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         pb.directory(new File("myDir"));
         Process p = pb.start();*/
 
-        log.debug("Working Directory = " + System.getProperty("user.dir"));
+
+        try {
+            runPythonAsBinary();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
+
+    private void runPythonAsBinary() throws IOException {
+
+        Runtime runtime = Runtime.getRuntime();
+
+        //log.debug(System.getProperty("user.dir") + "pytest.exe");
+
+        Process process =  runtime.exec(System.getProperty("user.dir") + "\\pytest.exe");
+
+
+
+        InputStream processInputStream = process.getInputStream();
+        OutputStream processOutputStream = process.getOutputStream();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(processInputStream));
+
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(processOutputStream));
+
+        System.out.println(reader.readLine());
+
+        writer.write("TestBoy");
+        writer.flush();
+        writer.close();
+
+        String testB = reader.readLine();
+        log.debug(testB);
+        reader.close();
+    }
+
     // region whatever
     private void writeState(List<String> msges, double value){
         File file = new File("Trainingdata.csv");
