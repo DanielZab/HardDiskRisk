@@ -55,10 +55,10 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private MyDoubleLinkedTree mcTree;
 
-    public static ArrayList<Set<Integer>> continents = new ArrayList<>(Arrays.asList(new HashSet<Integer>(Arrays.asList(38,39,40,41)), new HashSet<Integer>(Arrays.asList(9,10,11,12)), new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8)),
+    public static ArrayList<Set<Integer>> staticContinents = new ArrayList<>(Arrays.asList(new HashSet<Integer>(Arrays.asList(38,39,40,41)), new HashSet<Integer>(Arrays.asList(9,10,11,12)), new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8)),
     new HashSet<Integer>(Arrays.asList(13,14,15,16,17,18,19)), new HashSet<Integer>(Arrays.asList(20,21,22,23,24,25)), new HashSet<Integer>(Arrays.asList(26,27,28,29,30,31,32,33,34,35,36,37))));
 
-
+    public ArrayList<Set<Integer>> continents;
     // Custom variables and functions
 
     private int placedTroupsCounter = 0;
@@ -105,15 +105,35 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             selectionPhase.add(RiskAction.select(i));
         }
 
+        for (int i = 0; i < 9; i++) {
+            northAmerica.add(i);
+        }
+        for (int i = 13; i < 20; i++) {
+            europe.add(i);
+        }
+        for (int i = 20; i < 26; i++) {
+            africa.add(i);
+        }
+        for (int i = 26; i < 38; i++) {
+            asia.add(i);
+        }
+
         int[] tmpAus = {38,39,40,41};
         int[] tmpSouth = {9,10,11,12};
 
         for (int i = 0; i < tmpAus.length; i++) {
+            preferredStartingPositionsAustralia.add(tmpAus[i]);
+            preferredStartingPositionsSouthAmerica.add(tmpSouth[i]);
             preferredStartingActionsAustralia.add(RiskAction.select(tmpAus[i]));
             preferredStartingActionsSouthAmerica.add(RiskAction.select(tmpSouth[i]));
         }
 
-
+        continents.add(preferredStartingPositionsAustralia);
+        continents.add(preferredStartingPositionsSouthAmerica);
+        continents.add(northAmerica);
+        continents.add(europe);
+        continents.add(africa);
+        continents.add(asia);
     }
 
     public HardDiskRisk() {

@@ -127,7 +127,7 @@ public class McGameNode implements GameNode<RiskAction> {
 
     private double getContinentMultiplier(int playerID){
         double tempMult = 1;
-        for (Set<Integer> cont:HardDiskRisk.continents) {
+        for (Set<Integer> cont:HardDiskRisk.staticContinents) {
             int temp = cont.size();
             cont.retainAll(game.getBoard().getTerritoriesOccupiedByPlayer(playerID));
             if (cont.size() == temp){
