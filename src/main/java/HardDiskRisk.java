@@ -384,7 +384,14 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     public void tryPython(){
 
+        /*
+        ProcessBuilder pb = new ProcessBuilder("myCommand", "myArg1", "myArg2");
+        pb.directory(new File("myDir"));
+        Process p = pb.start();*/
+
+        log.debug("Working Directory = " + System.getProperty("user.dir"));
     }
+    // region whatever
     private void writeState(List<String> msges, double value){
         File file = new File("Trainingdata.csv");
         FileWriter writer = null;
@@ -463,6 +470,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
             writeState(messages.poll(), mcTree.getNode().computeValue());
         }
     }
+    //endregion
 
     public RiskAction computeNextAction(Risk game, long computationTime, TimeUnit timeUnit) {
         setTimers(computationTime, timeUnit);
