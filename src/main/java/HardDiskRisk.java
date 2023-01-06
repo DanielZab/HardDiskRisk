@@ -29,6 +29,10 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private boolean reinforceSwitch = true;
 
+    private BufferedReader reader;
+
+    private BufferedWriter writer;
+
 
 /*
     private Comparator<Tree<McGameNode>> gameMcTreeUCTComparator;
@@ -134,6 +138,25 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         continents.add(europe);
         continents.add(africa);
         continents.add(asia);
+
+        Runtime runtime = Runtime.getRuntime();
+
+        //log.debug(System.getProperty("user.dir") + "pytest.exe");
+
+        Process process = null;
+        try {
+            process = runtime.exec(System.getProperty("user.dir") + "\\pytest.exe");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        InputStream processInputStream = process.getInputStream();
+        OutputStream processOutputStream = process.getOutputStream();
+
+        reader = new BufferedReader(new InputStreamReader(processInputStream));
+
+        writer = new BufferedWriter(new OutputStreamWriter(processOutputStream));
     }
 
     public HardDiskRisk() {
@@ -402,30 +425,11 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
 
     private void runPythonAsBinary() throws IOException {
 
-        Runtime runtime = Runtime.getRuntime();
-
-        //log.debug(System.getProperty("user.dir") + "pytest.exe");
-
-        Process process =  runtime.exec(System.getProperty("user.dir") + "\\pytest.exe");
-
-
-
-        InputStream processInputStream = process.getInputStream();
-        OutputStream processOutputStream = process.getOutputStream();
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(processInputStream));
-
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(processOutputStream));
-
-        System.out.println(reader.readLine());
-
-        writer.write("TestBoy");
+        writer.write("State" + "\n");
         writer.flush();
-        writer.close();
 
         String testB = reader.readLine();
         log.debug(testB);
-        reader.close();
     }
 
     // region whatever
@@ -515,7 +519,9 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         if (mcTree.getNode() == null){
             mcTree.setNode(new McGameNode(game, playerId));
         }
-        tryPython();
+        for (int i = 0; i < 50; i++) {
+            tryPython();
+        }
 
         this.log._tra("Searching for root of tree");
         boolean foundRoot = Util.findRoot(this.mcTree, game);
@@ -665,6 +671,13 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     }
 
     public void tearDown() {
+        try {
+            writer.close();
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void destroy() {
