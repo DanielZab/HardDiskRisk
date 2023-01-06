@@ -342,7 +342,7 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
         Iterator<McGameNode> iterator = mcTree.myChildrenIterator();
         while (iterator.hasNext()) {
             var temp = iterator.next();
-            if(!temp.toString().startsWith("C") && !checkIfReinforceable(game, temp.getGame().getPreviousAction().reinforcedId())){
+            if(!temp.getGame().getPreviousAction().toString().startsWith("C") && !temp.getGame().getPreviousAction().toString().startsWith("E") && !checkIfReinforceable(game, temp.getGame().getPreviousAction().reinforcedId())){
                 iterator.remove();
             }
         }
@@ -370,6 +370,8 @@ public class HardDiskRisk extends AbstractGameAgent<Risk, RiskAction> implements
     private boolean checkIfReinforceable(Risk game, int TerID) {
 
         if (game.getBoard().isFortifyPhase() && game.getBoard().getTerritoryOccupantId(TerID) != playerId) return false;
+
+        if(TerID < 0 || TerID > 42) return true;
 
         //checking if TerID is a border
         if (game.getBoard().neighboringEnemyTerritories(TerID).size() > 0) {
