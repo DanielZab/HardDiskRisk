@@ -1,0 +1,1 @@
+java -jar sge-1.0.2-exe.jar match -vv -c 10 --file=sge-risk-1.0.2-exe.jar "..\\build\\libs\\HardDiskRisk.jar" sge-randomagent-1.0.1.jar
