@@ -1,5 +1,5 @@
 # Agent Description
-This repository contains our implementation of a risk agent for the course "[188.981 Programmierung von Strategie-Spielen9(https://tiss.tuwien.ac.at/course/educationDetails.xhtml?dswid=7736&dsrid=837&semester=2022W&courseNr=188981)" at the TU-Wien. We were already provided with the Risk framework, therefore this repository only contains our additions.
+This repository contains our implementation of a risk agent for the course "[188.981 Programmierung von Strategie-Spielen](https://tiss.tuwien.ac.at/course/educationDetails.xhtml?dswid=7736&dsrid=837&semester=2022W&courseNr=188981)" at the TU-Wien. We were already provided with the Risk framework, therefore this repository only contains our additions.
 
 ## General Idea
 Generally, the agent has different heuristics for the different
